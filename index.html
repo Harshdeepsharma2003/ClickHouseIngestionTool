@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClickHouse & Flat File Data Ingestion Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Bidirectional ClickHouse & Flat File Data Ingestion Tool</h1>
+        <p>Transfer data between ClickHouse and Flat Files easily</p>
+    </header>
+
+    <div class="main-content">
+        <!-- Source / Target Selection -->
+        <div class="card">
+            <h2>Data Flow Direction</h2>
+            <div class="switch-container">
+                <span class="switch-label">ClickHouse → Flat File</span>
+                <select id="dataDirection" class="form-select">
+                    <option value="clickhouse-to-flatfile">ClickHouse → Flat File</option>
+                    <option value="flatfile-to-clickhouse">Flat File → ClickHouse</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ClickHouse Connection Settings -->
+        <div class="card" id="clickhouseSourceCard">
+            <h2>ClickHouse Connection Settings</h2>
+            <div class="form-group">
+                <label for="ch-host">Host:</label>
+                <input type="text" id="ch-host" placeholder="localhost" value="localhost">
+            </div>
+            <div class="form-group">
+                <label for="ch-port">Port:</label>
+                <input type="number" id="ch-port" placeholder="8123" value="8123">
+            </div>
+            <div class="form-group">
+                <label for="ch-database">Database:</label>
+                <input type="text" id="ch-database" placeholder="default" value="default">
+            </div>
+            <div class="form-group">
+                <label for="ch-user">User:</label>
+                <input type="text" id="ch-user" placeholder="default" value="default">
+            </div>
+            <div class="form-group">
+                <label for="ch-jwt">JWT Token:</label>
+                <input type="text" id="ch-jwt" placeholder="Enter JWT token">
+            </div>
+            <button id="connectClickHouse" class="btn btn-primary">Connect to ClickHouse</button>
+        </div>
+
+        <!-- Flat File Configuration -->
+        <div class="card" id="flatFileCard">
+            <h2>Flat File Configuration</h2>
+            <div class="form-group">
+                <label for="file-input">Select File:</label>
+                <input type="file" id="file-input" accept=".csv,.txt">
+            </div>
+            <div class="form-group">
+                <label for="delimiter">Delimiter:</label>
+                <input type="text" id="delimiter" placeholder="," value=",">
+            </div>
+            <div class="form-group">
+                <label for="has-header">File Has Header Row:</label>
+                <input type="checkbox" id="has-header" checked>
+            </div>
+            <button id="loadFlatFile" class="btn btn-primary">Load File Schema</button>
+        </div>
+
+        <!-- Table Selection (ClickHouse) -->
+        <div class="card hidden" id="tableSelectionCard">
+            <h2>Table Selection</h2>
+            <div class="form-group">
+                <label for="table-select">Select Table:</label>
+                <select id="table-select">
+                    <option value="">-- Select a table --</option>
+                </select>
+            </div>
+            <button id="loadTableSchema" class="btn btn-primary">Load Table Schema</button>
+
+            <!-- Multi-table join (bonus feature) -->
+            <div class="form-group">
+                <label for="enable-join">
+                    <input type="checkbox" id="enable-join"> Enable Multi-Table Join
+                </label>
+                <div id="join-container" class="join-container hidden">
+                    <h3>Additional Tables</h3>
+                    <div id="additional-tables"></div>
+                    <button id="add-table" class="btn btn-primary">Add Another Table</button>
+                    <div class="form-group">
+                        <label for="join-condition">JOIN Condition:</label>
+                        <input type="text" id="join-condition" class="join-input" placeholder="e.g., table1.id = table2.id">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column Selection -->
+        <div class="card hidden" id="columnSelectionCard">
+            <h2>Column Selection</h2>
+            <button id="select-all-columns" class="btn btn-primary">Select All</button>
+            <button id="deselect-all-columns" class="btn btn-primary">Deselect All</button>
+            <div class="checkbox-group" id="column-checkboxes">
+                <!-- Columns will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Target Configuration (depends on direction) -->
+        <div class="card hidden" id="targetConfigCard">
+            <h2 id="targetConfigTitle">Target Configuration</h2>
+            <!-- Content will be changed based on direction -->
+            <div id="clickhouseTargetConfig" class="hidden">
+                <div class="form-group">
+                    <label for="target-table-name">Target Table Name:</label>
+                    <input type="text" id="target-table-name" placeholder="Enter target table name">
+                </div>
+                <div class="form-group">
+                    <label for="create-table">
+                        <input type="checkbox" id="create-table" checked> Create table if not exists
+                    </label>
+                </div>
+            </div>
+            <div id="flatFileTargetConfig" class="hidden">
+                <div class="form-group">
+                    <label for="output-filename">Output File Name:</label>
+                    <input type="text" id="output-filename" placeholder="output.csv" value="output.csv">
+                </div>
+                <div class="form-group">
+                    <label for="output-delimiter">Output Delimiter:</label>
+                    <input type="text" id="output-delimiter" placeholder="," value=",">
+                </div>
+                <div class="form-group">
+                    <label for="include-header">
+                        <input type="checkbox" id="include-header" checked> Include Header Row
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Data -->
+        <div class="card hidden" id="previewCard">
+            <h2>Data Preview</h2>
+            <button id="preview-data" class="btn btn-primary">Preview Data</button>
+            <div class="data-preview">
+                <table id="preview-table">
+                    <thead>
+                    <tr id="preview-headers"></tr>
+                    </thead>
+                    <tbody id="preview-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Ingestion Controls -->
+        <div class="card hidden" id="ingestionCard">
+            <h2>Ingestion Controls</h2>
+            <button id="start-ingestion" class="btn btn-success">Start Ingestion</button>
+            <div class="progress-container hidden" id="progress-container">
+                <div class="progress-bar" id="progress-bar">0%</div>
+            </div>
+            <div id="status-area" class="alert alert-info hidden"></div>
+            <div id="result-area" class="alert alert-success hidden"></div>
+        </div>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
